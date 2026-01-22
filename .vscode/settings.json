@@ -1,7 +1,7 @@
 {
   "deno.enable": true,
   "deno.enablePaths": ["clock_in_buddy/supabase/functions"],
-  "deno.unstable": true,
+  "deno.unstable": [],
   "deno.lint": true,
   "deno.suggest.imports.hosts": {
       "https://deno.land": true

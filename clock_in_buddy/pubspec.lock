@@ -520,14 +520,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "9.2.3"
-  odoo_rpc:
-    dependency: "direct main"
-    description:
-      name: odoo_rpc
-      sha256: c243639c4d33efe74c3227d9f8d10fa41599aee922795d909c6a9da497b18481
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.7.1"
   path:
     dependency: transitive
     description:

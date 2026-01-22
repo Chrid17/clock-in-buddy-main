@@ -101,69 +101,39 @@ class _ClockButtonState extends State<ClockButton> {
   Future<void> _syncToOdoo(BuildContext context, String eventType) async {
     final odooService = context.read<OdooService>();
     final authService = context.read<AuthService>();
+    
     final phone = authService.user?.phone;
     final fullName = authService.user?.userMetadata?['full_name'];
 
-    debugPrint('Odoo Sync Start - Phone: $phone, MetaName: $fullName');
+    debugPrint('Odoo Sync Start (via Edge Function) - Phone: $phone, Name: $fullName');
 
     try {
-      // 1. Authenticate
-      final authOk = await odooService.authenticate();
-      if (!authOk) {
-        if (mounted) {
+      final success = await odooService.syncClockEvent(
+        eventType: eventType,
+        phone: phone,
+        name: fullName,
+        lat: _geoService.latitude,
+        lng: _geoService.longitude,
+        address: _geoService.address,
+      );
+
+      if (mounted) {
+        if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Odoo Auth Failed: ${odooService.error ?? "Unknown error"}'),
-              backgroundColor: Colors.red,
+            const SnackBar(
+              content: Text('Synced with Odoo successfully'),
+              backgroundColor: Colors.blue,
+              duration: Duration(seconds: 2),
             ),
           );
-        }
-        return;
-      }
-
-      // 2. Find Employee
-      final employeeId = await odooService.findEmployee(
-        phone: phone,
-        name: authService.user?.userMetadata?['full_name'],
-      );
-      if (employeeId == null) {
-        if (mounted) {
+        } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Odoo Sync: Employee not found (Phone: $phone, Name: $fullName)'),
+              content: Text('Odoo Sync Failed: ${odooService.error ?? "Unknown error"}'),
               backgroundColor: Colors.orange,
             ),
           );
         }
-        return;
-      }
-
-      // 3. Sync Clock Event
-      bool syncOk;
-      if (eventType == 'clock_in') {
-        syncOk = await odooService.checkIn(
-          employeeId,
-          address: _geoService.address,
-          lat: _geoService.latitude,
-          lng: _geoService.longitude,
-        );
-      } else {
-        syncOk = await odooService.checkOut(
-          employeeId,
-          address: _geoService.address,
-          lat: _geoService.latitude,
-          lng: _geoService.longitude,
-        );
-      }
-
-      if (mounted && syncOk) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Synced with Odoo successfully'),
-            backgroundColor: Colors.blue,
-            duration: Duration(seconds: 2),
-          ),
-        );
       }
     } catch (e) {
       debugPrint('Odoo Sync Exception: $e');

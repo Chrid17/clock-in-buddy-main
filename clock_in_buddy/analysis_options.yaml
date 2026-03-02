@@ -4,8 +4,6 @@ include: package:flutter_lints/flutter.yaml
 linter:
   rules:
     # Relax rules for faster development
-    deprecated_member_use: false
-    deprecated_member_use_from_same_package: false
     prefer_const_constructors: false
     prefer_const_constructors_in_immutables: false
     prefer_const_literals_to_create_immutables: false

@@ -1,4 +1,10 @@
 {
+  "cSpell.words": [
+    "odoo",
+    "supabase",
+    "subosito",
+    "roboto"
+  ],
   "deno.enable": true,
   "deno.enablePaths": ["clock_in_buddy/supabase/functions"],
   "deno.unstable": [],

@@ -76,7 +76,7 @@ class _ClockButtonState extends State<ClockButton> {
 
       if (result.success) {
         // Start Odoo Sync automatically
-        _syncToOdoo(context, eventType);
+        _syncToOdoo(eventType);
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -98,7 +98,7 @@ class _ClockButtonState extends State<ClockButton> {
     }
   }
 
-  Future<void> _syncToOdoo(BuildContext context, String eventType) async {
+  Future<void> _syncToOdoo(String eventType) async {
     final odooService = context.read<OdooService>();
     final authService = context.read<AuthService>();
     

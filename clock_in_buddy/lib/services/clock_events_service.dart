@@ -1,11 +1,9 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'dart:io' as io;
-import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/supabase_config.dart';
 import '../models/clock_event.dart';
@@ -107,12 +105,12 @@ class ClockEventsService extends ChangeNotifier {
           .eq('id', id)
           .select(); // Using select() to confirm if a row was actually deleted
 
-      if (response == null || (response as List).isEmpty) {
+      if (response.isEmpty) {
         debugPrint('Service: Deletion failed or RLS blocked it. No rows affected.');
         return (success: false, error: 'Deletion failed. Please check table RLS policies.');
       }
 
-      debugPrint('Service: Successfully deleted event: ${response[0]}');
+      debugPrint('Service: Successfully deleted event: ${response.first}');
       await fetchEvents();
       return (success: true, error: null);
     } catch (e) {

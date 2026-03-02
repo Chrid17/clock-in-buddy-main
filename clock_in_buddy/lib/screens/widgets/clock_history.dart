@@ -354,7 +354,7 @@ class _ClockEventCard extends StatelessWidget {
           width: width,
           height: height,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+          errorBuilder: (_, _, _) => const Icon(Icons.broken_image),
         );
       } catch (_) {
         return const Icon(Icons.broken_image);
@@ -365,7 +365,7 @@ class _ClockEventCard extends StatelessWidget {
       width: width,
       height: height,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+      errorBuilder: (_, _, _) => const Icon(Icons.broken_image),
     );
   }
 }

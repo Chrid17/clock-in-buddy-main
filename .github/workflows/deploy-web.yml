@@ -1,4 +1,3 @@
-# cSpell:words subosito supabase odoo
 name: Deploy to GitHub Pages
 
 on:

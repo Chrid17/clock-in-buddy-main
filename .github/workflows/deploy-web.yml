@@ -1,3 +1,4 @@
+# cSpell:words subosito supabase odoo
 name: Deploy to GitHub Pages
 
 on:
@@ -26,15 +27,20 @@ jobs:
 
       - name: Create .env file
         working-directory: clock_in_buddy
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          ODOO_URL: ${{ secrets.ODOO_URL }}
+          ODOO_DB: ${{ secrets.ODOO_DB }}
+          ODOO_USER: ${{ secrets.ODOO_USER }}
+          ODOO_PASSWORD: ${{ secrets.ODOO_PASSWORD }}
         run: |
-          cat <<EOF > .env
-          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-          ODOO_URL=${{ secrets.ODOO_URL }}
-          ODOO_DB=${{ secrets.ODOO_DB }}
-          ODOO_USER=${{ secrets.ODOO_USER }}
-          ODOO_PASSWORD=${{ secrets.ODOO_PASSWORD }}
-          EOF
+          echo "SUPABASE_URL=$SUPABASE_URL" > .env
+          echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> .env
+          echo "ODOO_URL=$ODOO_URL" >> .env
+          echo "ODOO_DB=$ODOO_DB" >> .env
+          echo "ODOO_USER=$ODOO_USER" >> .env
+          echo "ODOO_PASSWORD=$ODOO_PASSWORD" >> .env
 
       - name: Install dependencies
         working-directory: clock_in_buddy

@@ -12,7 +12,7 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _fullNameController = TextEditingController();
   
@@ -22,22 +22,22 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   void initState() {
     super.initState();
-    _loadLastPhone();
+    _loadLastEmail();
   }
 
-  Future<void> _loadLastPhone() async {
+  Future<void> _loadLastEmail() async {
     final authService = context.read<AuthService>();
-    final phone = await authService.getLastPhone();
-    if (phone != null && mounted) {
+    final email = await authService.getLastEmail();
+    if (email != null && mounted) {
       setState(() {
-        _phoneController.text = phone;
+        _emailController.text = email;
       });
     }
   }
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     _fullNameController.dispose();
     super.dispose();
@@ -53,13 +53,13 @@ class _AuthScreenState extends State<AuthScreen> {
     AuthResult result;
     if (_isSignUp) {
       result = await authService.signUp(
-        phone: _phoneController.text.trim(),
+        email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
         fullName: _fullNameController.text.trim(),
       );
     } else {
       result = await authService.signIn(
-        phone: _phoneController.text.trim(),
+        email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
     }
@@ -102,7 +102,6 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo
                   Container(
                     width: 80,
                     height: 80,
@@ -132,7 +131,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   const SizedBox(height: 40),
                   
-                  // Form
                   AutofillGroup(
                     child: Form(
                       key: _formKey,
@@ -160,24 +158,24 @@ class _AuthScreenState extends State<AuthScreen> {
                             const SizedBox(height: 16),
                           ],
                           TextFormField(
-                            controller: _phoneController,
+                            controller: _emailController,
                             decoration: InputDecoration(
-                              labelText: 'Phone Number',
-                              prefixIcon: const Icon(Icons.phone_outlined),
-                              hintText: '+1234567890',
+                              labelText: 'Email',
+                              prefixIcon: const Icon(Icons.email_outlined),
+                              hintText: 'you@example.com',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            autofillHints: const [AutofillHints.telephoneNumber],
-                            keyboardType: TextInputType.phone,
+                            autofillHints: const [AutofillHints.email],
+                            keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
                             validator: (value) {
-                              if (value == null || value.length < 10) {
-                                return 'Please enter a valid phone number (min 10 digits)';
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your email';
                               }
-                              if (!value.startsWith('+')) {
-                                return 'Please include country code (e.g., +1...)';
+                              if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value)) {
+                                return 'Please enter a valid email address';
                               }
                               return null;
                             },
@@ -245,7 +243,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   const SizedBox(height: 24),
                   
-                  // Toggle
                   TextButton(
                     onPressed: () {
                       setState(() {

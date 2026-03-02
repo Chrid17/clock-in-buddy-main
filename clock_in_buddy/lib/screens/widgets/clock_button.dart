@@ -102,15 +102,15 @@ class _ClockButtonState extends State<ClockButton> {
     final odooService = context.read<OdooService>();
     final authService = context.read<AuthService>();
     
-    final phone = authService.user?.phone;
+    final email = authService.user?.email;
     final fullName = authService.user?.userMetadata?['full_name'];
 
-    debugPrint('Odoo Sync Start (via Edge Function) - Phone: $phone, Name: $fullName');
+    debugPrint('Odoo Sync Start (via Edge Function) - Email: $email, Name: $fullName');
 
     try {
       final success = await odooService.syncClockEvent(
         eventType: eventType,
-        phone: phone,
+        email: email,
         name: fullName,
         lat: _geoService.latitude,
         lng: _geoService.longitude,

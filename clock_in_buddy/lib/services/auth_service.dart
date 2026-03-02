@@ -9,7 +9,7 @@ class AuthService extends ChangeNotifier {
   User? _user;
   Session? _session;
   bool _loading = true;
-  static const String _lastPhoneKey = 'last_used_phone';
+  static const String _lastEmailKey = 'last_used_email';
 
   User? get user => _user;
   Session? get session => _session;
@@ -21,7 +21,6 @@ class AuthService extends ChangeNotifier {
   }
 
   void _initialize() {
-    // Listen to auth state changes
     SupabaseConfig.client.auth.onAuthStateChange.listen((data) {
       _session = data.session;
       _user = data.session?.user;
@@ -29,7 +28,6 @@ class AuthService extends ChangeNotifier {
       notifyListeners();
     });
 
-    // Check for existing session
     _checkSession();
   }
 
@@ -46,13 +44,13 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<AuthResult> signUp({
-    required String phone,
+    required String email,
     required String password,
     required String fullName,
   }) async {
     try {
       final response = await SupabaseConfig.client.auth.signUp(
-        phone: phone,
+        email: email,
         password: password,
         data: {'full_name': fullName},
       );
@@ -62,9 +60,6 @@ class AuthService extends ChangeNotifier {
       }
       return (success: false, error: 'Sign up failed');
     } on AuthException catch (e) {
-      if (e.message.contains('Email')) {
-        return (success: false, error: e.message.replaceAll('Email', 'Phone number'));
-      }
       return (success: false, error: e.message);
     } catch (e) {
       return (success: false, error: e.toString());
@@ -72,40 +67,37 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<AuthResult> signIn({
-    required String phone,
+    required String email,
     required String password,
   }) async {
     try {
       final response = await SupabaseConfig.client.auth.signInWithPassword(
-        phone: phone,
+        email: email,
         password: password,
       );
 
       if (response.user != null) {
-        if (response.user!.phone != null) {
-          await saveLastPhone(response.user!.phone!);
+        if (response.user!.email != null) {
+          await saveLastEmail(response.user!.email!);
         }
         return (success: true, error: null);
       }
       return (success: false, error: 'Sign in failed');
     } on AuthException catch (e) {
-      if (e.message.contains('Email')) {
-        return (success: false, error: e.message.replaceAll('Email', 'Phone number'));
-      }
       return (success: false, error: e.message);
     } catch (e) {
       return (success: false, error: e.toString());
     }
   }
 
-  Future<void> saveLastPhone(String phone) async {
+  Future<void> saveLastEmail(String email) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_lastPhoneKey, phone);
+    await prefs.setString(_lastEmailKey, email);
   }
 
-  Future<String?> getLastPhone() async {
+  Future<String?> getLastEmail() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_lastPhoneKey);
+    return prefs.getString(_lastEmailKey);
   }
 
   Future<void> signOut() async {

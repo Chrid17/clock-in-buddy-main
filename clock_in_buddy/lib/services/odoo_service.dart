@@ -15,7 +15,7 @@ class OdooService extends ChangeNotifier {
   /// Syncs a clock event directly to Odoo.
   Future<bool> syncClockEvent({
     required String eventType,
-    String? phone,
+    String? email,
     String? name,
     double? lat,
     double? lng,
@@ -79,15 +79,10 @@ class OdooService extends ChangeNotifier {
       // 2. Find Employee
       int? employeeId;
 
-      if (phone != null && phone.isNotEmpty) {
-        final last9 = phone.replaceAll(RegExp(r'\D'), '');
-        final phoneSegment = last9.length >= 9 ? last9.substring(last9.length - 9) : last9;
-        final phoneDomain = [
-          '|', ['work_phone', 'ilike', '%$phoneSegment%'],
-          '|', ['mobile_phone', 'ilike', '%$phoneSegment%'],
-          ['private_phone', 'ilike', '%$phoneSegment%']
-        ];
-        final results = await odooCall('hr.employee', 'search', [phoneDomain]);
+      if (email != null && email.isNotEmpty) {
+        final results = await odooCall('hr.employee', 'search', [
+          [['work_email', 'ilike', email]]
+        ]);
         if (results is List && results.isNotEmpty) employeeId = results[0];
       }
 

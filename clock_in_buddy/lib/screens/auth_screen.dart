@@ -18,6 +18,7 @@ class _AuthScreenState extends State<AuthScreen> {
   
   bool _isSignUp = false;
   bool _isSubmitting = false;
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -64,9 +65,8 @@ class _AuthScreenState extends State<AuthScreen> {
       );
     }
 
-    setState(() => _isSubmitting = false);
-
     if (!mounted) return;
+    setState(() => _isSubmitting = false);
 
     if (result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -126,7 +126,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   Text(
                     'Track your time, anywhere',
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                   const SizedBox(height: 40),
@@ -136,27 +136,35 @@ class _AuthScreenState extends State<AuthScreen> {
                       key: _formKey,
                       child: Column(
                         children: [
-                          if (_isSignUp) ...[
-                            TextFormField(
-                              controller: _fullNameController,
-                              decoration: InputDecoration(
-                                labelText: 'Full Name',
-                                prefixIcon: const Icon(Icons.person_outline),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              autofillHints: const [AutofillHints.name],
-                              textInputAction: TextInputAction.next,
-                              validator: (value) {
-                                if (_isSignUp && (value == null || value.length < 2)) {
-                                  return 'Name must be at least 2 characters';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                          ],
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 200),
+                            child: _isSignUp
+                                ? Column(
+                                    children: [
+                                      TextFormField(
+                                        controller: _fullNameController,
+                                        decoration: InputDecoration(
+                                          labelText: 'Full Name',
+                                          prefixIcon: const Icon(Icons.person_outline),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                        autofillHints: const [AutofillHints.name],
+                                        textCapitalization: TextCapitalization.words,
+                                        textInputAction: TextInputAction.next,
+                                        validator: (value) {
+                                          if (_isSignUp && (value == null || value.length < 2)) {
+                                            return 'Name must be at least 2 characters';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                      const SizedBox(height: 16),
+                                    ],
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
                           TextFormField(
                             controller: _emailController,
                             decoration: InputDecoration(
@@ -186,12 +194,18 @@ class _AuthScreenState extends State<AuthScreen> {
                             decoration: InputDecoration(
                               labelText: 'Password',
                               prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                ),
+                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                              ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
                             autofillHints: const [AutofillHints.password],
-                            obscureText: true,
+                            obscureText: _obscurePassword,
                             textInputAction: TextInputAction.done,
                             onFieldSubmitted: (_) => _submit(),
                             validator: (value) {
@@ -247,6 +261,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     onPressed: () {
                       setState(() {
                         _isSignUp = !_isSignUp;
+                        _passwordController.clear();
                       });
                     },
                     child: Text.rich(
@@ -255,7 +270,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             ? 'Already have an account? '
                             : "Don't have an account? ",
                         style: TextStyle(
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                         children: [
                           TextSpan(

@@ -13,11 +13,40 @@ class ClockEventsService extends ChangeNotifier {
   ClockEvent? _lastEvent;
   bool _loading = true;
   String? _userId;
+  String? _error;
 
   List<ClockEvent> get events => _events;
   ClockEvent? get lastEvent => _lastEvent;
   bool get loading => _loading;
+  String? get error => _error;
   bool get isClockedIn => _lastEvent?.eventType == 'clock_in';
+
+  Duration get todayWorkedDuration {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final todayEvents = _events
+        .where((e) => e.createdAt.isAfter(todayStart))
+        .toList()
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+    var total = Duration.zero;
+    DateTime? clockInTime;
+
+    for (final event in todayEvents) {
+      if (event.eventType == 'clock_in') {
+        clockInTime = event.createdAt;
+      } else if (event.eventType == 'clock_out' && clockInTime != null) {
+        total += event.createdAt.difference(clockInTime);
+        clockInTime = null;
+      }
+    }
+
+    if (clockInTime != null) {
+      total += now.difference(clockInTime);
+    }
+
+    return total;
+  }
 
   void setUserId(String? userId) {
     if (_userId != userId) {
@@ -43,6 +72,7 @@ class ClockEventsService extends ChangeNotifier {
     }
 
     _loading = true;
+    _error = null;
     notifyListeners();
 
     try {
@@ -51,13 +81,14 @@ class ClockEventsService extends ChangeNotifier {
           .select()
           .eq('user_id', _userId!)
           .order('created_at', ascending: false)
-          .limit(50);
+          .limit(100);
 
       _events = (response as List)
           .map((json) => ClockEvent.fromJson(json as Map<String, dynamic>))
           .toList();
       _lastEvent = _events.isNotEmpty ? _events.first : null;
     } catch (e) {
+      _error = 'Could not load events. Pull down to retry.';
       debugPrint('Error fetching events: $e');
     }
 
@@ -97,87 +128,89 @@ class ClockEventsService extends ChangeNotifier {
   }
 
   Future<({bool success, String? error})> deleteClockEvent(String id) async {
-    debugPrint('Service: Attempting to delete event with ID: $id');
     try {
       final response = await SupabaseConfig.client
           .from('clock_events')
           .delete()
           .eq('id', id)
-          .select(); // Using select() to confirm if a row was actually deleted
+          .select();
 
       if (response.isEmpty) {
-        debugPrint('Service: Deletion failed or RLS blocked it. No rows affected.');
         return (success: false, error: 'Deletion failed. Please check table RLS policies.');
       }
 
-      debugPrint('Service: Successfully deleted event: ${response.first}');
       await fetchEvents();
       return (success: true, error: null);
     } catch (e) {
-      debugPrint('Service: Error deleting event: $e');
+      debugPrint('Error deleting event: $e');
       return (success: false, error: e.toString());
     }
   }
 
-  Future<void> exportToCsv(String fullName) async {
-    if (_events.isEmpty) return;
-
-    // 1. Prepare data
-    List<List<dynamic>> rows = [];
-    rows.add([
-      'Date',
-      'Time',
-      'Employee',
-      'Event Type',
-      'Address',
-      'Latitude',
-      'Longitude',
-      
-    ]);
-
-    final dateFormat = DateFormat('dd/MM/yyyy');
-    final timeFormat = DateFormat('HH:mm:ss');
-
-    for (var event in _events) {
-      rows.add([
-        dateFormat.format(event.createdAt),
-        timeFormat.format(event.createdAt),
-        fullName,
-        event.eventType == 'clock_in' ? 'Clock In' : 'Clock Out',
-        event.address ?? '',
-        event.latitude ?? '',
-        event.longitude ?? '',
-        event.notes ?? ''
-      ]);
+  Future<({bool success, String? error})> exportToCsv(String fullName) async {
+    if (_events.isEmpty) {
+      return (success: false, error: 'No events to export');
     }
 
-    // 2. Convert to CSV
-    String csvData = const ListToCsvConverter().convert(rows);
+    try {
+      List<List<dynamic>> rows = [];
+      rows.add([
+        'Date',
+        'Time',
+        'Employee',
+        'Event Type',
+        'Address',
+        'Latitude',
+        'Longitude',
+        'Notes',
+      ]);
 
-    // 3. Save/Download
-    if (kIsWeb) {
-      _downloadWeb(csvData);
-    } else {
-      await _saveFile(csvData);
+      final dateFormat = DateFormat('dd/MM/yyyy');
+      final timeFormat = DateFormat('HH:mm:ss');
+
+      for (var event in _events) {
+        rows.add([
+          dateFormat.format(event.createdAt.toLocal()),
+          timeFormat.format(event.createdAt.toLocal()),
+          fullName,
+          event.eventType == 'clock_in' ? 'Clock In' : 'Clock Out',
+          event.address ?? '',
+          event.latitude ?? '',
+          event.longitude ?? '',
+          event.notes ?? '',
+        ]);
+      }
+
+      String csvData = const ListToCsvConverter().convert(rows);
+
+      if (kIsWeb) {
+        await _downloadWeb(csvData);
+      } else {
+        await _saveFile(csvData);
+      }
+      return (success: true, error: null);
+    } catch (e) {
+      debugPrint('Export error: $e');
+      return (success: false, error: 'Failed to export: $e');
     }
   }
 
   Future<void> _downloadWeb(String csvData) async {
     final bytes = utf8.encode(csvData);
-    final base64 = base64Encode(bytes);
-    final url = 'data:text/csv;base64,$base64';
+    final base64Data = base64Encode(bytes);
+    final url = 'data:text/csv;base64,$base64Data';
     
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url));
     } else {
-      debugPrint('Could not launch CSV download URL');
+      throw Exception('Could not download CSV');
     }
   }
 
   Future<void> _saveFile(String csvData) async {
     String? outputFile = await FilePicker.platform.saveFile(
-      dialogTitle: 'Please select where to save your CSV file:',
-      fileName: 'clock_history_${DateTime.now().millisecondsSinceEpoch}.csv',
+      dialogTitle: 'Save clock history as CSV',
+      fileName: 'clock_history_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.csv',
       type: FileType.custom,
       allowedExtensions: ['csv'],
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
 import '../services/clock_events_service.dart';
 import 'auth_screen.dart';
@@ -21,7 +22,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     
-    // Initialize clock events service with user ID
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authService = context.read<AuthService>();
       final clockEventsService = context.read<ClockEventsService>();
@@ -36,6 +36,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _signOut() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text('Are you sure you want to sign out?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sign Out')),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
     final authService = context.read<AuthService>();
     await authService.signOut();
     if (mounted) {
@@ -45,14 +59,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final authService = context.watch<AuthService>();
+    final clockService = context.watch<ClockEventsService>();
+    final fullName = authService.user?.userMetadata?['full_name'] as String?;
+    final displayName = fullName ?? authService.user?.email ?? '';
+    final firstName = fullName?.split(' ').first ?? '';
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: theme.colorScheme.surface.withOpacity(0.8),
+        backgroundColor: theme.colorScheme.surface,
         elevation: 0,
         title: Row(
           children: [
@@ -63,10 +88,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 color: theme.colorScheme.primary,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                Icons.access_time,
-                size: 20,
-                color: theme.colorScheme.onPrimary,
+              child: Center(
+                child: Text(
+                  displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                  style: TextStyle(
+                    color: theme.colorScheme.onPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -75,21 +105,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Remote Clock In',
+                    '${_getGreeting()}${firstName.isNotEmpty ? ', $firstName' : ''}',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   Text(
-                    authService.user?.email ?? '',
+                    DateFormat('EEEE, MMM d').format(DateTime.now()),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
+            if (clockService.isClockedIn) _buildWorkTimer(theme, clockService),
           ],
         ),
         actions: [
@@ -102,14 +132,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(
-              icon: Icon(Icons.access_time),
-              text: 'Clock',
-            ),
-            Tab(
-              icon: Icon(Icons.history),
-              text: 'History',
-            ),
+            Tab(icon: Icon(Icons.access_time), text: 'Clock'),
+            Tab(icon: Icon(Icons.history), text: 'History'),
           ],
         ),
       ),
@@ -121,6 +145,35 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             child: ClockButton(),
           ),
           ClockHistory(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWorkTimer(ThemeData theme, ClockEventsService service) {
+    final duration = service.todayWorkedDuration;
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.green.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.timer, size: 14, color: Colors.green),
+          const SizedBox(width: 4),
+          Text(
+            '${hours}h ${minutes.toString().padLeft(2, '0')}m',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Colors.green,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

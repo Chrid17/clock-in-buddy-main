@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../services/clock_events_service.dart';
 import '../../services/camera_service.dart';
 import '../../services/geolocation_service.dart';
@@ -21,6 +22,7 @@ class _ClockButtonState extends State<ClockButton> {
   ClockStep _step = ClockStep.idle;
   bool _submitting = false;
   String? _capturedPhoto;
+  final _notesController = TextEditingController();
   
   final CameraService _cameraService = CameraService();
   final GeolocationService _geoService = GeolocationService();
@@ -28,13 +30,13 @@ class _ClockButtonState extends State<ClockButton> {
   @override
   void dispose() {
     _cameraService.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
   Future<void> _startClock() async {
     setState(() => _step = ClockStep.camera);
     
-    // Initialize camera and get location simultaneously
     await Future.wait([
       _cameraService.initializeCamera(),
       _geoService.getLocation(),
@@ -69,13 +71,13 @@ class _ClockButtonState extends State<ClockButton> {
       latitude: _geoService.latitude,
       longitude: _geoService.longitude,
       address: _geoService.address,
+      notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
     );
 
     if (mounted) {
       setState(() => _submitting = false);
 
       if (result.success) {
-        // Start Odoo Sync automatically
         _syncToOdoo(eventType);
         
         ScaffoldMessenger.of(context).showSnackBar(
@@ -105,8 +107,6 @@ class _ClockButtonState extends State<ClockButton> {
     final email = authService.user?.email;
     final fullName = authService.user?.userMetadata?['full_name'];
 
-    debugPrint('Odoo Sync Start (via Edge Function) - Email: $email, Name: $fullName');
-
     try {
       final success = await odooService.syncClockEvent(
         eventType: eventType,
@@ -129,7 +129,7 @@ class _ClockButtonState extends State<ClockButton> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Odoo Sync Failed: ${odooService.error ?? "Unknown error"}'),
+              content: Text('Odoo sync failed: ${odooService.error ?? "Unknown error"}'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -143,6 +143,7 @@ class _ClockButtonState extends State<ClockButton> {
   void _handleCancel() {
     _cameraService.dispose();
     _geoService.reset();
+    _notesController.clear();
     setState(() {
       _step = ClockStep.idle;
       _capturedPhoto = null;
@@ -173,6 +174,12 @@ class _ClockButtonState extends State<ClockButton> {
     final clockEventsService = context.watch<ClockEventsService>();
     final isClockedIn = clockEventsService.isClockedIn;
 
+    final lastEvent = clockEventsService.lastEvent;
+    String? lastEventTime;
+    if (lastEvent != null) {
+      lastEventTime = DateFormat('h:mm a').format(lastEvent.createdAt.toLocal());
+    }
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -183,15 +190,15 @@ class _ClockButtonState extends State<ClockButton> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isClockedIn
-                  ? Colors.green.withOpacity(0.1)
-                  : theme.colorScheme.surfaceVariant,
+                  ? Colors.green.withValues(alpha: 0.1)
+                  : theme.colorScheme.surfaceContainerHighest,
               border: Border.all(
                 color: isClockedIn ? Colors.green : theme.colorScheme.outline,
                 width: 4,
               ),
             ),
             child: Icon(
-              Icons.access_time,
+              isClockedIn ? Icons.check_circle_outline : Icons.access_time,
               size: 80,
               color: isClockedIn ? Colors.green : theme.colorScheme.onSurfaceVariant,
             ),
@@ -203,11 +210,19 @@ class _ClockButtonState extends State<ClockButton> {
               fontWeight: FontWeight.w600,
             ),
           ),
+          const SizedBox(height: 4),
+          if (lastEventTime != null)
+            Text(
+              'Since $lastEventTime',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
+            ),
           const SizedBox(height: 8),
           Text(
             'Tap below to ${isClockedIn ? 'clock out' : 'clock in'}',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(height: 32),
@@ -244,17 +259,24 @@ class _ClockButtonState extends State<ClockButton> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: Container(
-              color: theme.colorScheme.surfaceVariant,
+              color: theme.colorScheme.surfaceContainerHighest,
               child: _cameraService.isInitialized && _cameraService.controller != null
                   ? CameraPreview(_cameraService.controller!)
                   : _cameraService.error != null
                       ? Center(
                           child: Padding(
                             padding: const EdgeInsets.all(24),
-                            child: Text(
-                              _cameraService.error!,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: theme.colorScheme.error),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.camera_alt, size: 48, color: theme.colorScheme.error),
+                                const SizedBox(height: 12),
+                                Text(
+                                  _cameraService.error!,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: theme.colorScheme.error),
+                                ),
+                              ],
                             ),
                           ),
                         )
@@ -347,11 +369,11 @@ class _ClockButtonState extends State<ClockButton> {
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceVariant,
+            color: theme.colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
@@ -359,7 +381,7 @@ class _ClockButtonState extends State<ClockButton> {
               Icon(Icons.access_time, size: 20, color: theme.colorScheme.onSurfaceVariant),
               const SizedBox(width: 8),
               Text(
-                DateTime.now().toString().substring(0, 19),
+                DateFormat('h:mm a  •  MMM d, yyyy').format(DateTime.now()),
                 style: theme.textTheme.bodyMedium,
               ),
             ],
@@ -367,7 +389,22 @@ class _ClockButtonState extends State<ClockButton> {
         ),
         const SizedBox(height: 8),
         _buildLocationInfo(),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _notesController,
+          decoration: InputDecoration(
+            hintText: 'Add a note (optional)',
+            prefixIcon: const Icon(Icons.notes, size: 20),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            isDense: true,
+          ),
+          maxLines: 1,
+          textInputAction: TextInputAction.done,
+        ),
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
@@ -424,7 +461,7 @@ class _ClockButtonState extends State<ClockButton> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(

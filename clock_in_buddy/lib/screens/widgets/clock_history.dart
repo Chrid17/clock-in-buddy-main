@@ -21,6 +21,31 @@ class ClockHistory extends StatelessWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
+    if (service.error != null && service.events.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.cloud_off, size: 64, color: theme.colorScheme.error),
+            const SizedBox(height: 16),
+            Text(
+              service.error!,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => service.fetchEvents(),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (service.events.isEmpty) {
       return Center(
         child: Column(
@@ -29,13 +54,20 @@ class ClockHistory extends StatelessWidget {
             Icon(
               Icons.access_time,
               size: 64,
-              color: theme.colorScheme.onSurface.withOpacity(0.3),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
               'No clock events yet',
               style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Your clock-in history will appear here',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
               ),
             ),
           ],
@@ -50,19 +82,27 @@ class ClockHistory extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Recent History',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Recent History',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    '${service.events.length} records',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
               ),
-              TextButton.icon(
-                onPressed: () => service.exportToCsv(fullName),
-                icon: const Icon(Icons.download),
-                label: const Text('Export CSV'),
-                style: TextButton.styleFrom(
-                  foregroundColor: theme.colorScheme.primary,
-                ),
+              FilledButton.tonalIcon(
+                onPressed: () => _exportCsv(context, service, fullName),
+                icon: const Icon(Icons.download, size: 18),
+                label: const Text('Export'),
               ),
             ],
           ),
@@ -71,7 +111,7 @@ class ClockHistory extends StatelessWidget {
           child: RefreshIndicator(
             onRefresh: () => service.fetchEvents(),
             child: ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: service.events.length,
               itemBuilder: (context, index) {
                 final event = service.events[index];
@@ -82,6 +122,27 @@ class ClockHistory extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _exportCsv(BuildContext context, ClockEventsService service, String fullName) async {
+    final result = await service.exportToCsv(fullName);
+    if (!context.mounted) return;
+
+    if (result.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('CSV exported successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.error ?? 'Export failed'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }
 
@@ -101,14 +162,13 @@ class _ClockEventCard extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Photo Header
               if (event.photoUrl != null)
                 _buildPhoto(event.photoUrl!, height: 300, width: double.infinity)
               else
                 Container(
                   height: 120,
                   width: double.infinity,
-                  color: theme.colorScheme.surfaceVariant,
+                  color: theme.colorScheme.surfaceContainerHighest,
                   child: Icon(Icons.image_not_supported, size: 48, color: theme.colorScheme.onSurfaceVariant),
                 ),
               
@@ -146,6 +206,12 @@ class _ClockEventCard extends StatelessWidget {
                         icon: Icons.location_on,
                         label: 'Location',
                         value: event.address!,
+                      ),
+                    if (event.notes != null && event.notes!.isNotEmpty)
+                      _DetailItem(
+                        icon: Icons.notes,
+                        label: 'Notes',
+                        value: event.notes!,
                       ),
                     
                     if (event.latitude != null && event.longitude != null)
@@ -221,14 +287,13 @@ class _ClockEventCard extends StatelessWidget {
                   setDialogState(() => isDeleting = true);
                   
                   try {
-                    // Use a local reference to the service before jumping async
                     final service = Provider.of<ClockEventsService>(context, listen: false);
                     final result = await service.deleteClockEvent(event.id);
                     
                     if (dialogContext.mounted) {
-                      Navigator.pop(dialogContext); // Close confirm
+                      Navigator.pop(dialogContext);
                       if (context.mounted) {
-                        Navigator.pop(context); // Close details
+                        Navigator.pop(context);
                         
                         if (result.success) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -282,7 +347,7 @@ class _ClockEventCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.colorScheme.outline.withOpacity(0.1)),
+        side: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.1)),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -295,7 +360,7 @@ class _ClockEventCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -315,13 +380,17 @@ class _ClockEventCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       DateFormat('h:mm a, MMM d').format(event.createdAt.toLocal()),
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
                     ),
                     if (event.address != null) ...[
                       const SizedBox(height: 2),
                       Text(
                         event.address!,
-                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.4)),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -337,7 +406,7 @@ class _ClockEventCard extends StatelessWidget {
                 ),
               ],
               const SizedBox(width: 8),
-              Icon(Icons.chevron_right, size: 20, color: theme.colorScheme.onSurface.withOpacity(0.3)),
+              Icon(Icons.chevron_right, size: 20, color: theme.colorScheme.onSurface.withValues(alpha: 0.3)),
             ],
           ),
         ),
@@ -385,13 +454,15 @@ class _DetailItem extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: theme.colorScheme.primary.withOpacity(0.7)),
+          Icon(icon, size: 20, color: theme.colorScheme.primary.withValues(alpha: 0.7)),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.5))),
+                Text(label, style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                )),
                 const SizedBox(height: 2),
                 Text(value, style: theme.textTheme.bodyMedium),
               ],

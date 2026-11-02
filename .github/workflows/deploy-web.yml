@@ -11,56 +11,34 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  group: pages
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clock_in_buddy
     steps:
       - uses: actions/checkout@v4
-
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-
-      - name: Create .env file
-        working-directory: clock_in_buddy
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          ODOO_URL: ${{ secrets.ODOO_URL }}
-          ODOO_DB: ${{ secrets.ODOO_DB }}
-          ODOO_USER: ${{ secrets.ODOO_USER }}
-          ODOO_PASSWORD: ${{ secrets.ODOO_PASSWORD }}
-        run: |
-          echo "SUPABASE_URL=$SUPABASE_URL" > .env
-          echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> .env
-          echo "ODOO_URL=$ODOO_URL" >> .env
-          echo "ODOO_DB=$ODOO_DB" >> .env
-          echo "ODOO_USER=$ODOO_USER" >> .env
-          echo "ODOO_PASSWORD=$ODOO_PASSWORD" >> .env
-
-      - name: Install dependencies
-        working-directory: clock_in_buddy
-        run: flutter pub get
-
-      - name: Build web
-        working-directory: clock_in_buddy
-        run: flutter build web --release --base-href /clock-in-buddy-main/
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+          cache: true
+      - run: flutter pub get
+      - run: flutter test
+      - run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: clock_in_buddy/build/web
 
   deploy:
+    needs: build
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
+      - id: deployment
         uses: actions/deploy-pages@v4

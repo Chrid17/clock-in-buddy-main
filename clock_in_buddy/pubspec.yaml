@@ -1,46 +1,53 @@
 name: clock_in_buddy
-description: "Remote Clock In - Track your time with photo and location verification"
+description: "Clock In Buddy: remote clock-in with photo verification, GPS proof and a REST backend."
 publish_to: 'none'
-version: 1.0.0+1
+version: 2.0.0+2
 
 environment:
-  sdk: ^3.10.4
+  sdk: ^3.10.0
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
-  
-  # Supabase
-  supabase_flutter: ^2.3.0
-  
-  # State management
-  provider: ^6.1.1
-  
-  # Camera
-  camera: ^0.10.5+5
-  
-  # Location
-  geolocator: ^11.0.0
-  
+
+  # Backend: Supabase auth; data goes through the REST client in lib/src/api
+  supabase_flutter: ^2.18.3
+  http: ^1.4.0
+
+  # State
+  provider: ^6.1.5
+
+  # Proof of attendance
+  camera: ^0.12.1
+  geolocator: ^14.1.2
+  crypto: ^3.0.6
+
   # Utilities
-  intl: ^0.19.0
-  flutter_dotenv: ^5.1.0
-  http: ^1.2.0
-  shared_preferences: ^2.2.3
-  url_launcher: ^6.2.5
-  csv: ^6.0.0
-  file_picker: ^8.0.0+1
-  
-  # Platform specific
-  camera_windows: ^0.2.1+5
+  intl: ^0.20.2
+  shared_preferences: ^2.5.3
+  url_launcher: ^6.3.2
+  share_plus: ^13.3.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
 
 flutter:
   uses-material-design: true
-  assets:
-    - .env
+
+flutter_launcher_icons:
+  image_path: "assets/icon/app_icon.png"
+  android: true
+  min_sdk_android: 24
+  adaptive_icon_background: "#4F46E5"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  ios: true
+  image_path_ios: "assets/icon/app_icon_square.png"
+  remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+    background_color: "#4F46E5"
+    theme_color: "#4F46E5"

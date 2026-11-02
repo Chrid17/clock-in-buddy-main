@@ -11,5 +11,6 @@
   "deno.lint": true,
   "deno.suggest.imports.hosts": {
       "https://deno.land": true
-  }
+  },
+  "java.configuration.updateBuildConfiguration": "interactive"
 }

@@ -1,0 +1,40 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  cloudflare:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clock_in_buddy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Add web support if missing
+        run: if [ ! -d web ]; then flutter create --platforms=web .; fi
+      - run: flutter pub get
+      - name: Build
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          ARGS=""
+          if [ -n "$SUPABASE_URL" ]; then ARGS="$ARGS --dart-define=SUPABASE_URL=$SUPABASE_URL"; fi
+          if [ -n "$SUPABASE_ANON_KEY" ]; then ARGS="$ARGS --dart-define=SUPABASE_KEY=$SUPABASE_ANON_KEY"; fi
+          if [ -n "$GROQ_API_KEY" ]; then ARGS="$ARGS --dart-define=GROQ_API_KEY=$GROQ_API_KEY"; fi
+          flutter build web --release --no-web-resources-cdn --base-href / $ARGS
+      - name: Single-page app routing
+        run: rm -f build/web/404.html build/web/_redirects
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy clock_in_buddy/build/web --project-name=chrid17-clockinbuddy --branch=main --commit-dirty=true

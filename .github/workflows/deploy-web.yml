@@ -28,7 +28,7 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter test
-      - run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+      - run: flutter build web --no-web-resources-cdn --release --base-href "/${{ github.event.repository.name }}/"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: clock_in_buddy/build/web
